@@ -95,12 +95,14 @@ var paddle = {
 var ball = {
 	isDestructable : false, // to be used later
 	launched : false, // flag for ball launched from paddle
+	firstCollision : true, // flag to be used for checking collsions with paddle
 	
 	radius : 0, // must be computed
 	
 	ballRadiusRatio : 0.1, // ball radius ratio relative to paddle height
 	
 	movementDirection : { x: 0, y: 0 }, // direction of movement of ball
+	maxSpeed : { x: 1, y: 1}, // to govern max speed of the ball
 	
 	item : null, // the actual ball object
 	
@@ -126,6 +128,9 @@ var ball = {
 	reset : function(){
 		// reset all flags to default values
 		ball.launched = false;
+		ball.firstCollision = true;
+		
+		// set ball movement to 0
 		ball.movementDirection.x = ball.movementDirection.y = 0;
 		
 		// set the ball on top of the paddle
@@ -163,7 +168,6 @@ var ball = {
 		var paddleBB = new THREE.Box3().setFromObject(paddle.item),
 			newBallX = (paddleBB.max.x + paddleBB.min.x) / 2;
 		
-		console.log('moving with paddle X = ', newBallX);
 		ball.item.position.setX(newBallX);
 	},
 	
@@ -172,8 +176,6 @@ var ball = {
 		if(!keyboard.pressed('space')){
 			return;
 		}
-		
-		console.log('ball launch triggered');
 		
 		ball.launched = true;
 		
@@ -189,45 +191,52 @@ var ball = {
 			currentBallPosition = ball.item.position;
 		
 		// check collision with horizontal borders
-		if(currentBallPosition.x <= leftBorder){
-			// check for ball collision with left border
-			ball.movementDirection.x = 1;
-		} else if(currentBallPosition.x >= rightBorder){
-			// check for ball collision with right border
-			ball.movementDirection.x = -1;
+		if((currentBallPosition.x <= leftBorder) || (currentBallPosition.x >= rightBorder)){
+			ball.movementDirection.x *= -1;
+			ball.firstCollision = false;
 		}
 		
 		// check collision with vertical borders
 		if(currentBallPosition.y >= topBorder){
-			// check for ball collision with left border
-			ball.movementDirection.y = -1;
+			ball.movementDirection.y *= -1;
+			ball.firstCollision = false;
 		} else if(currentBallPosition.y <= bottomBorder){
-			// check for ball collision with right border
-			//ball.movementDirection.y = 1;
 			ball.reset();
+			return;
+		}
+		
+		// because items updates are in a loop, checking is very fast.
+		// as soon the ball is launched from paddle in the beginning, in the first frame, ball is still
+		// on / inside the paddle and is picked up as a collision in this implementation.
+		// hence this first collision check with the paddle is required
+		if(ball.firstCollision){
+			ball.firstCollision = false;
 			return;
 		}
 		
 		// check collision with paddle
 		var ballBB = new THREE.Box3().setFromObject(ball.item),
 			paddleBB = new THREE.Box3().setFromObject(paddle.item);
-			
-		ballBB.min.x -= ball.radius;
-		ballBB.min.y -= ball.radius;
 		
-		if(paddleBB.containsPoint(ballBB.min)){
-			console.log('ball -- paddle collision detected');
-			
-			var ballPositionX = ball.item.position.x,
-				ballDirectionX = ball.movementDirection.x,
+		if(paddleBB.containsPoint(ballBB.min) || paddleBB.containsPoint(ballBB.max)){
+			var ballDirectionX = ball.movementDirection.x,
+				ballPositionX = ball.item.position.x,
 				paddleMidPoint = (paddleBB.min.x + paddleBB.max.x) / 2;
 			
-			if(((ballDirectionX == 1) && (ballPositionX <= paddleMidPoint))
-				|| ((ballDirectionX == -1) && (ballPositionX >= paddleMidPoint))){
+			if(((ballDirectionX > 0) && (ballPositionX <= paddleMidPoint)) || ((ballDirectionX < 0) && (ballPositionX >= paddleMidPoint))){
 				ball.movementDirection.x *= -1;
+			} else {
+				var newMovementX = ballDirectionX;
+				
+				if(Math.abs(ball.movementDirection.x) <= (ball.radius / 2)){
+					newMovementX *= 2;
+				} else {
+					newMovementX *= Math.abs((Math.abs(paddleMidPoint) - Math.abs(ballPositionX))) / (paddle.dimensions.width / 2);
+				}
+				
+				ball.movementDirection.x = newMovementX;
 			}
 			
-			//ball.movementDirection.x *= -1;
 			ball.movementDirection.y = 1;
 		}
 	},
