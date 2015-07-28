@@ -3,6 +3,8 @@ var keyboard = new THREEx.KeyboardState();
 
 
 var paddle = {
+	objetType : 'paddle',
+	removeItem : false, // to be used later
 	isDestructable : false, // to be used later
 	inMotion : false, // to indicate paddle movement
 	vertices : [],
@@ -93,6 +95,8 @@ var paddle = {
 
 
 var ball = {
+	objectType : 'ball',
+	removeItem : false, // to be used later
 	isDestructable : false, // to be used later
 	launched : false, // flag for ball launched from paddle
 	firstCollision : true, // flag to be used for checking collsions with paddle
@@ -179,8 +183,8 @@ var ball = {
 		
 		ball.launched = true;
 		
-		ball.movementDirection.x = Math.random() <= 0.5 ? -1 : 1;
-		ball.movementDirection.y = 1;
+		ball.movementDirection.x = (Math.random() <= 0.5 ? -1 : 1) * ball.radius;
+		ball.movementDirection.y = 1 * ball.radius;
 	},
 	
 	checkCollisions : function(){
@@ -205,46 +209,68 @@ var ball = {
 			return;
 		}
 		
-		// because items updates are in a loop, checking is very fast.
-		// as soon the ball is launched from paddle in the beginning, in the first frame, ball is still
-		// on / inside the paddle and is picked up as a collision in this implementation.
-		// hence this first collision check with the paddle is required
-		if(ball.firstCollision){
-			ball.firstCollision = false;
-			return;
+		var ballBB = new THREE.Box3().setFromObject(ball.item);
+		
+		for(var index in game.items){
+			var gameObject = game.items[index];
+			
+			if(gameObject.objectType !== 'brick')
+				continue;
+				
+			if(gameObject.startRemoval)
+				continue;
+			
+			var itemBB = gameObject.item.geometry.boundingBox;
+			
+			if(itemBB.containsPoint(ballBB.min) || itemBB.containsPoint(ballBB.max)){
+				ball.firstCollision = true;
+				
+				gameObject.startRemoval = true;
+				
+				var ballPositionX = ball.item.position.x,
+					ballPositionY = ball.item.position.y,
+					itemMidpointX = (itemBB.min.x + itemBB.max.x) / 2,
+					itemMidpointY = (itemBB.min.y + itemBB.max.y) / 2;
+				
+				// TODO - code to reflect ball properly after collision with brick
+				
+				return;
+			}
 		}
 		
 		// check collision with paddle
-		var ballBB = new THREE.Box3().setFromObject(ball.item),
-			paddleBB = new THREE.Box3().setFromObject(paddle.item);
+		var	paddleBB = new THREE.Box3().setFromObject(paddle.item);
 		
 		if(paddleBB.containsPoint(ballBB.min) || paddleBB.containsPoint(ballBB.max)){
+			// because items updates are in a loop, checking is very fast.
+			// as soon the ball is launched from paddle in the beginning, in the first frame, ball is still
+			// on/inside the paddle and is picked up as a collision in this implementation.
+			// hence this first collision check with the paddle is required
+			if(ball.firstCollision){
+				ball.firstCollision = false;
+				return;
+			}
+			
 			var ballDirectionX = ball.movementDirection.x,
 				ballPositionX = ball.item.position.x,
 				paddleMidPoint = (paddleBB.min.x + paddleBB.max.x) / 2;
+				
+			var newBallMovementX = Math.abs((Math.abs(paddleMidPoint) - Math.abs(ballPositionX))) / (paddle.dimensions.width / 2);
 			
-			if(((ballDirectionX > 0) && (ballPositionX <= paddleMidPoint)) || ((ballDirectionX < 0) && (ballPositionX >= paddleMidPoint))){
-				ball.movementDirection.x *= -1;
+			if(ballPositionX <= paddleMidPoint){
+				ball.movementDirection.x = -1 * newBallMovementX * ball.radius;
 			} else {
-				var newMovementX = ballDirectionX;
-				
-				if(Math.abs(ball.movementDirection.x) <= (ball.radius / 2)){
-					newMovementX *= 2;
-				} else {
-					newMovementX *= Math.abs((Math.abs(paddleMidPoint) - Math.abs(ballPositionX))) / (paddle.dimensions.width / 2);
-				}
-				
-				ball.movementDirection.x = newMovementX;
+				ball.movementDirection.x = 1 * newBallMovementX * ball.radius;
 			}
 			
-			ball.movementDirection.y = 1;
+			ball.movementDirection.y = 1 * ball.radius;
 		}
 	},
 	
 	
 	computePath : function(){
-		var newBallX = ball.movementDirection.x * ball.radius,
-			newBallY = ball.movementDirection.y * ball.radius;
+		var newBallX = ball.movementDirection.x,
+			newBallY = ball.movementDirection.y;
 		
 		ball.item.translateX(newBallX);
 		ball.item.translateY(newBallY);
@@ -252,11 +278,53 @@ var ball = {
 };
 
 
-var brick = {
-	isDestructable : true, // to be used later
-	vertices : [],
-	init : function(){},
-	update : function(){}
+var brick = function(){
+	var context = this;
+	
+	this.objectType = 'brick';
+	this.removeItem = false; // to be used later
+	this.isDestructable = true; // to be used later
+	
+	this.startRemoval = false;
+	
+	this.item = null; // the brick item
+	
+	this.init = function(){
+		var geometry = new THREE.Geometry();
+		geometry.vertices = [
+			new THREE.Vector3(-3,1,0),
+			new THREE.Vector3(3,1,0),
+			new THREE.Vector3(3,-1,0),
+			new THREE.Vector3(-3,-1,0),
+		];
+		geometry.faces = [
+			new THREE.Face3(3,1,0),
+			new THREE.Face3(1,3,2)
+		];
+		geometry.computeBoundingBox();
+		
+		var material = new THREE.MeshBasicMaterial({color: 0x00ff00, transparent: true, opacity: 1});
+		
+		context.item = new THREE.Mesh(geometry, material);
+		
+		game.scene.add(context.item);
+	};
+	
+	this.update = function(){
+		if(context.removeItem){
+			return;
+		}
+		
+		if(context.startRemoval){
+			if(context.item.material.opacity <= 0){
+				context.removeItem = true;
+				return;
+			}
+			
+			context.item.material.opacity -= 0.01;
+		}
+	};
+	
 };
 
 
@@ -298,25 +366,40 @@ var game = {
 		game.scene.updateMatrixWorld(true);
 
 		game.renderer = new THREE.WebGLRenderer();
+		game.renderer.shadowMapEnabled = true;
 		game.renderer.setSize(game.ghWidth, game.ghHeight);
 
 		game.graphicsHost.appendChild(game.renderer.domElement);
 		
 		paddle.init();
+		game.items.push(paddle);
+		
 		ball.init();
+		game.items.push(ball);
+		
+		game.generateBricks();
 	},
 	
 	
 	update : function(){
-		paddle.update();
-		ball.update();
-		
 		for(var index in game.items){
-			game.items[index].update();
+			var gameItem = game.items[index];
+			
+			gameItem.update();
+			
+			if(gameItem.removeItem){
+				game.items.splice(index--, 1);
+			}
 		}
 		
 		game.renderer.render(game.scene, game.camera);
 		requestAnimationFrame(game.update);
+	},
+	
+	generateBricks : function(){
+		var brickItem = new brick();
+		brickItem.init();
+		game.items.push(brickItem);
 	}
 };
 
