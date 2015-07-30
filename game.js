@@ -362,8 +362,7 @@ var game = {
 		game.visibleArea = { x: width, y: height };
 		
 		game.brickLayerInfo.rows = 6;
-		//game.brickLayerInfo.cols = 6;
-		game.brickLayerInfo.cols = Math.floor(width / brick.brickWidth);
+		game.brickLayerInfo.cols = (Math.floor(width / brick.brickWidth) / 2) - 1;
 
 		game.scene = new THREE.Scene();
 		
