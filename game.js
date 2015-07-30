@@ -227,12 +227,15 @@ var ball = {
 				
 				gameObject.startRemoval = true;
 				
-				var ballPositionX = ball.item.position.x,
-					ballPositionY = ball.item.position.y,
-					itemMidpointX = (itemBB.min.x + itemBB.max.x) / 2,
-					itemMidpointY = (itemBB.min.y + itemBB.max.y) / 2;
+				var ballPositionY = ball.item.position.y;
 				
-				// TODO - code to reflect ball properly after collision with brick
+				if((ballPositionY < itemBB.min.y) || (ballPositionY > itemBB.max.y)){
+					// ball hit the brick from above or below
+					ball.movementDirection.y *= -1;
+				} else {
+					// ball hit the brick from sides
+					ball.movementDirection.x *= -1;
+				}
 				
 				return;
 			}
@@ -321,7 +324,7 @@ var brick = function(){
 				return;
 			}
 			
-			context.item.material.opacity -= 0.01;
+			context.item.material.opacity -= 0.1;
 		}
 	};
 	
