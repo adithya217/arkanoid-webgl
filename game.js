@@ -227,14 +227,12 @@ var ball = {
 				
 				gameObject.startRemoval = true;
 				
-				var ballPositionY = ball.item.position.y;
-				
-				if((ballPositionY < itemBB.min.y) || (ballPositionY > itemBB.max.y)){
-					// ball hit the brick from above or below
-					ball.movementDirection.y *= -1;
-				} else {
-					// ball hit the brick from sides
+				if((ballBB.min.x < itemBB.min.x) || (ballBB.max.x > itemBB.max.x)) {
+					// ball hit the brick horizontally
 					ball.movementDirection.x *= -1;
+				} else {
+					// ball hit the brick vertically
+					ball.movementDirection.y *= -1;
 				}
 				
 				return;
@@ -243,6 +241,8 @@ var ball = {
 		
 		// check collision with paddle
 		var	paddleBB = new THREE.Box3().setFromObject(paddle.item);
+		// to prevent the ball from going inside the paddle
+		paddleBB.max.y += ball.radius;
 		
 		if(paddleBB.containsPoint(ballBB.min) || paddleBB.containsPoint(ballBB.max)){
 			// because items updates are in a loop, checking is very fast.
@@ -292,23 +292,15 @@ var brick = function(){
 	
 	this.item = null; // the brick item
 	
-	this.init = function(){
-		var geometry = new THREE.Geometry();
-		geometry.vertices = [
-			new THREE.Vector3(-3,1,0),
-			new THREE.Vector3(3,1,0),
-			new THREE.Vector3(3,-1,0),
-			new THREE.Vector3(-3,-1,0),
-		];
-		geometry.faces = [
-			new THREE.Face3(3,1,0),
-			new THREE.Face3(1,3,2)
-		];
-		geometry.computeBoundingBox();
+	this.init = function(options){
+		var geometry = new THREE.PlaneGeometry(brick.brickWidth, brick.brickHeight, 32, 32);
 		
-		var material = new THREE.MeshBasicMaterial({color: 0x00ff00, transparent: true, opacity: 1});
+		var material = new THREE.MeshBasicMaterial({color: options.color, transparent: true, opacity: 1, side: THREE.DoubleSide});
 		
 		context.item = new THREE.Mesh(geometry, material);
+		
+		context.item.position.set(options.position.x, options.position.y, options.position.z);
+		context.item.geometry.boundingBox = new THREE.Box3().setFromObject(context.item);
 		
 		game.scene.add(context.item);
 	};
@@ -330,6 +322,10 @@ var brick = function(){
 	
 };
 
+// some random values to start with
+brick.brickWidth = 6;
+brick.brickHeight = 2;
+
 
 var game = {
 	scene : null,
@@ -344,6 +340,8 @@ var game = {
 	visibleArea : {},
 	
 	items : [],
+	
+	brickLayerInfo : {},
 	
 	init : function(){
 		game.graphicsHost = document.getElementById('host'),
@@ -362,6 +360,10 @@ var game = {
 		var width = height * game.aspectRatio;
 		
 		game.visibleArea = { x: width, y: height };
+		
+		game.brickLayerInfo.rows = 6;
+		//game.brickLayerInfo.cols = 6;
+		game.brickLayerInfo.cols = Math.floor(width / brick.brickWidth);
 
 		game.scene = new THREE.Scene();
 		
@@ -400,9 +402,28 @@ var game = {
 	},
 	
 	generateBricks : function(){
-		var brickItem = new brick();
-		brickItem.init();
-		game.items.push(brickItem);
+		var rows = game.brickLayerInfo.rows,
+			cols = game.brickLayerInfo.cols;
+			
+		for(var rc=0; rc<rows; rc++){
+			var options = {
+				color : '#'+((Math.random() * 0xffffff) << 0).toString(16),
+				position : {
+					x: -(game.visibleArea.x / 2),
+					y: (rows - (rc * 2)) * brick.brickHeight,
+					z: 0
+				}
+			};
+			
+			for(var cc=0; cc<cols; cc++){
+				options.position.x += (2 * brick.brickWidth);
+				
+				var brickItem = new brick();
+				brickItem.init(options);
+				
+				game.items.push(brickItem);
+			}
+		}
 	}
 };
 
