@@ -71,14 +71,30 @@ var paddle = {
 			actionNeeded = false;
 			
 		if(keyboard.pressed('right')){
-			if(rightBorder >= paddle.position.rightX){
-				actionNeeded = true;
-				paddle.direction = 0.1 * paddle.dimensions.width;
+			if(rightBorder <= paddle.position.rightX){
+				return;
+			}
+			
+			actionNeeded = true;
+			var moveDist = 0.1 * paddle.dimensions.width;
+			
+			if(rightBorder >= (paddle.position.rightX + moveDist)){
+				paddle.direction = moveDist;
+			} else {
+				paddle.direction = rightBorder - paddle.position.rightX;
 			}
 		} else if(keyboard.pressed('left')){
-			if(leftBorder <= paddle.position.leftX){
-				actionNeeded = true;
-				paddle.direction = -0.1 * paddle.dimensions.width;
+			if(leftBorder >= paddle.position.leftX){
+				return;
+			}
+			
+			actionNeeded = true;
+			var moveDist = -0.1 * paddle.dimensions.width;
+			
+			if(leftBorder <= (paddle.position.leftX + moveDist)){
+				paddle.direction = moveDist;
+			} else {
+				paddle.direction = leftBorder - paddle.position.leftX;
 			}
 		}
 		
