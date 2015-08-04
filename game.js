@@ -243,14 +243,93 @@ var ball = {
 				
 				gameObject.startRemoval = true;
 				
-				if((ballBB.min.x < itemBB.min.x) || (ballBB.max.x > itemBB.max.x)) {
-					// ball hit the brick horizontally
-					ball.movementDirection.x *= -1;
-				} else {
-					// ball hit the brick vertically
-					ball.movementDirection.y *= -1;
-				}
+				console.log('ballPosition',ball.item.position,'itemBB',itemBB);
 				
+				if(ball.item.position.y > itemBB.max.y) {
+					if(ball.item.position.x < itemBB.min.x) {
+						// ball center at top left of brick
+						console.log('ball hit top left of brick');
+						if(ball.movementDirection.x > 0) {
+							ball.movementDirection.x *= -1;
+							console.log('ball reflected horizontally');
+						} else {
+							ball.movementDirection.y *= -1;
+							console.log('ball reflected vertically');
+						}
+					} else if(ball.item.position.x > itemBB.max.x) {
+						console.log('ball hit top right of brick');
+						// ball center at top right of brick
+						if(ball.movementDirection.x < 0) {
+							ball.movementDirection.x *= -1;
+							console.log('ball reflected horizontally');
+						} else {
+							ball.movementDirection.y *= -1;
+							console.log('ball reflected vertically');
+						}
+					} else {
+						// ball center at top center of brick
+						console.log('ball hit top center of brick');
+						ball.movementDirection.y *= -1;
+						console.log('ball reflected vertically');
+					}
+				} else if(ball.item.position.y < itemBB.min.y) {
+					if(ball.item.position.x < itemBB.min.x) {
+						// ball center at bottom left of brick
+						console.log('ball hit bottom left of brick');
+						if(ball.movementDirection.x > 0) {
+							ball.movementDirection.x *= -1;
+							console.log('ball reflected horizontally');
+						} else {
+							ball.movementDirection.y *= -1;
+							console.log('ball reflected vertically');
+						}
+					} else if(ball.item.position.x > itemBB.max.x) {
+						// ball center at bottom right of brick
+						console.log('ball hit bottom right of brick');
+						if(ball.movementDirection.x < 0) {
+							ball.movementDirection.x *= -1;
+							console.log('ball reflected horizontally');
+						} else {
+							ball.movementDirection.y *= -1;
+							console.log('ball reflected vertically');
+						}
+					} else {
+						// ball center at bottom center of brick
+						console.log('ball hit bottom center of brick');
+						ball.movementDirection.y *= -1;
+						console.log('ball reflected vertically');
+					}
+				} else {
+					if(ball.item.position.x < itemBB.min.x) {
+						// ball center at middle left of brick
+						console.log('ball hit middle left of brick');
+						if(ball.movementDirection.x > 0) {
+							ball.movementDirection.x *= -1;
+							console.log('ball reflected horizontally');
+						} else {
+							ball.movementDirection.y *= -1;
+							console.log('ball reflected vertically');
+						}
+					} else if(ball.item.position.x > itemBB.max.x) {
+						// ball center at middle right of brick
+						console.log('ball hit middle right of brick');
+						if(ball.movementDirection.x < 0) {
+							ball.movementDirection.x *= -1;
+							console.log('ball reflected horizontally');
+						} else {
+							ball.movementDirection.y *= -1;
+							console.log('ball reflected vertically');
+						}
+					} else {
+						// ball center at middle of brick
+						console.log('ball hit middle of brick');
+						// ball shouldn't come here. If it comes, it is a bug.
+						// reflect it vertically, just in case
+						ball.movementDirection.y *= -1;
+						console.log('ball reflected vertically');
+					}
+				}
+								
 				return;
 			}
 		}
@@ -288,8 +367,8 @@ var ball = {
 	
 	
 	computePath : function(){
-		var newBallX = ball.movementDirection.x,
-			newBallY = ball.movementDirection.y;
+		var newBallX = ball.movementDirection.x * 0.9,
+			newBallY = ball.movementDirection.y * 0.9;
 		
 		ball.item.translateX(newBallX);
 		ball.item.translateY(newBallY);
@@ -332,7 +411,7 @@ var brick = function(){
 				return;
 			}
 			
-			context.item.material.opacity -= 0.1;
+			context.item.material.opacity -= 0.5;
 		}
 	};
 	
