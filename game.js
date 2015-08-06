@@ -243,90 +243,64 @@ var ball = {
 				
 				gameObject.startRemoval = true;
 				
-				console.log('ballPosition',ball.item.position,'itemBB',itemBB);
-				
 				if(ball.item.position.y > itemBB.max.y) {
 					if(ball.item.position.x < itemBB.min.x) {
 						// ball center at top left of brick
-						console.log('ball hit top left of brick');
 						if(ball.movementDirection.x > 0) {
 							ball.movementDirection.x *= -1;
-							console.log('ball reflected horizontally');
 						} else {
 							ball.movementDirection.y *= -1;
-							console.log('ball reflected vertically');
 						}
 					} else if(ball.item.position.x > itemBB.max.x) {
-						console.log('ball hit top right of brick');
 						// ball center at top right of brick
 						if(ball.movementDirection.x < 0) {
 							ball.movementDirection.x *= -1;
-							console.log('ball reflected horizontally');
 						} else {
 							ball.movementDirection.y *= -1;
-							console.log('ball reflected vertically');
 						}
 					} else {
 						// ball center at top center of brick
-						console.log('ball hit top center of brick');
 						ball.movementDirection.y *= -1;
-						console.log('ball reflected vertically');
 					}
 				} else if(ball.item.position.y < itemBB.min.y) {
 					if(ball.item.position.x < itemBB.min.x) {
 						// ball center at bottom left of brick
-						console.log('ball hit bottom left of brick');
 						if(ball.movementDirection.x > 0) {
 							ball.movementDirection.x *= -1;
-							console.log('ball reflected horizontally');
 						} else {
 							ball.movementDirection.y *= -1;
-							console.log('ball reflected vertically');
 						}
 					} else if(ball.item.position.x > itemBB.max.x) {
 						// ball center at bottom right of brick
-						console.log('ball hit bottom right of brick');
 						if(ball.movementDirection.x < 0) {
 							ball.movementDirection.x *= -1;
-							console.log('ball reflected horizontally');
 						} else {
 							ball.movementDirection.y *= -1;
-							console.log('ball reflected vertically');
 						}
 					} else {
 						// ball center at bottom center of brick
-						console.log('ball hit bottom center of brick');
 						ball.movementDirection.y *= -1;
-						console.log('ball reflected vertically');
 					}
 				} else {
 					if(ball.item.position.x < itemBB.min.x) {
 						// ball center at middle left of brick
-						console.log('ball hit middle left of brick');
 						if(ball.movementDirection.x > 0) {
 							ball.movementDirection.x *= -1;
-							console.log('ball reflected horizontally');
 						} else {
 							ball.movementDirection.y *= -1;
-							console.log('ball reflected vertically');
 						}
 					} else if(ball.item.position.x > itemBB.max.x) {
 						// ball center at middle right of brick
-						console.log('ball hit middle right of brick');
 						if(ball.movementDirection.x < 0) {
 							ball.movementDirection.x *= -1;
-							console.log('ball reflected horizontally');
 						} else {
 							ball.movementDirection.y *= -1;
-							console.log('ball reflected vertically');
 						}
 					} else {
 						// ball center at middle of brick
-						console.log('ball hit middle of brick');
 						// ball shouldn't come here. If it comes, it is a bug.
 						// reflect it vertically, just in case
 						ball.movementDirection.y *= -1;
-						console.log('ball reflected vertically');
 					}
 				}
 								
@@ -336,7 +310,11 @@ var ball = {
 		
 		// check collision with paddle
 		var	paddleBB = new THREE.Box3().setFromObject(paddle.item);
-		// to prevent the ball from going inside the paddle
+		
+		// expanding paddle's bounding box, to prevent the ball from going inside the paddle
+		paddleBB.min.x -= ball.radius;
+		paddleBB.min.y -= ball.radius;
+		paddleBB.max.x += ball.radius;
 		paddleBB.max.y += ball.radius;
 		
 		if(paddleBB.containsPoint(ballBB.min) || paddleBB.containsPoint(ballBB.max)){
@@ -395,7 +373,16 @@ var brick = function(){
 		context.item = new THREE.Mesh(geometry, material);
 		
 		context.item.position.set(options.position.x, options.position.y, options.position.z);
-		context.item.geometry.boundingBox = new THREE.Box3().setFromObject(context.item);
+		
+		var tempBB = new THREE.Box3().setFromObject(context.item);
+		
+		// expanding the bounding box of the bricks a little bit for better collision detection
+		tempBB.min.x -= ball.radius;
+		tempBB.min.y -= ball.radius;
+		tempBB.max.x += ball.radius;
+		tempBB.max.y += ball.radius
+		
+		context.item.geometry.boundingBox = tempBB;
 		
 		game.scene.add(context.item);
 	};
