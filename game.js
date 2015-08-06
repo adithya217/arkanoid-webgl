@@ -23,36 +23,26 @@ var paddle = {
 	init : function(){
 		paddle.dimensions.width = paddle.paddleWidthRatio * game.visibleArea.x;
 		paddle.dimensions.height = paddle.paddleHeightRatio * game.visibleArea.y;
+		paddle.dimensions.depth = game.aspectRatio;
 		
 		paddle.position.rightX = (paddle.dimensions.width / 2);
 		paddle.position.leftX = -paddle.position.rightX;
 		paddle.position.bottomY = -((game.visibleArea.y - paddle.dimensions.height) / 2);
 		paddle.position.topY = paddle.position.bottomY + (paddle.dimensions.height / 2);
 		
-		paddle.vertices = [
-			new THREE.Vector3(paddle.position.leftX, paddle.position.topY, 0), // top left vertex
-			new THREE.Vector3(paddle.position.rightX, paddle.position.topY, 0), // top right vertex
-			new THREE.Vector3(paddle.position.rightX, paddle.position.bottomY, 0), // bottom right vertex
-			new THREE.Vector3(paddle.position.leftX, paddle.position.bottomY, 0) // bottom left vertex
-		];
-		
 		// VERY IMPORTANT - Three.js Faces must have their vertex order counter-clockwise for their fronts to be shown to the camera.
 		// If A,B,C,D are the vertices, one triangle face can have any reverse order of (A,B,C) and the other triangle face can have any reverse order of (B,C,D).
 		// If we have to use normal clockwise vertex ordering for faces like (A,B,C) and (B,C,D), then we can use DoubleSided Mesh Material.
-		paddle.faces = [
-			new THREE.Face3(0,3,1),
-			new THREE.Face3(1,3,2)
-		];
-		
-		var geometry = new THREE.Geometry();
-		geometry.vertices = paddle.vertices;
-		geometry.faces = paddle.faces;
-		geometry.computeBoundingBox();
+				
+		var geometry = new THREE.BoxGeometry(paddle.dimensions.width, paddle.dimensions.height/2, paddle.dimensions.depth);
 		
 		//var material = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: false, transparent: false, opacity: 1, side: THREE.DoubleSide });
 		var material = new THREE.MeshBasicMaterial({ color: 0xffffff });
 		
 		paddle.item = new THREE.Mesh(geometry, material);
+		
+		var paddleYPosition = -(game.visibleArea.y/2) + paddle.dimensions.height;
+		paddle.item.position.setY(paddleYPosition);
 		
 		game.scene.add(paddle.item);
 	},
@@ -104,7 +94,7 @@ var paddle = {
 			paddle.position.leftX += paddle.direction;
 			paddle.position.rightX += paddle.direction;
 			
-			paddle.item.translateX(paddle.direction);
+			paddle.item.position.x += paddle.direction;
 		}
 	}
 };
@@ -135,7 +125,7 @@ var ball = {
 		var geometry = new THREE.CircleGeometry(ball.radius, 32);
 		geometry.computeBoundingBox();
 		
-		var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+		var material = new THREE.MeshPhongMaterial({color: 0xff0000});
 		
 		ball.item = new THREE.Mesh(geometry, material);
 		
@@ -313,7 +303,6 @@ var ball = {
 		
 		// expanding paddle's bounding box, to prevent the ball from going inside the paddle
 		paddleBB.min.x -= ball.radius;
-		paddleBB.min.y -= ball.radius;
 		paddleBB.max.x += ball.radius;
 		paddleBB.max.y += ball.radius;
 		
@@ -347,9 +336,15 @@ var ball = {
 	computePath : function(){
 		var newBallX = ball.movementDirection.x * 0.9,
 			newBallY = ball.movementDirection.y * 0.9;
+			
+		// VERY IMPORTANT NOTE: rotating and translating do not go hand in hand.
+		// roatating an object also rotates its axes. Translating an object actually uses it local axes,
+		// so for example, rotating an object on its x and y axes and then translating it on its x-axis
+		// does NOT result in the object's movement along the WORLD's x-axis. Change the object's position
+		// instead of translation for this purpose.
 		
-		ball.item.translateX(newBallX);
-		ball.item.translateY(newBallY);
+		ball.item.position.x += newBallX;
+		ball.item.position.y += newBallY;
 	}
 };
 
@@ -366,9 +361,9 @@ var brick = function(){
 	this.item = null; // the brick item
 	
 	this.init = function(options){
-		var geometry = new THREE.PlaneGeometry(brick.brickWidth, brick.brickHeight, 32, 32);
+		var geometry = new THREE.BoxGeometry(brick.brickWidth, brick.brickHeight, game.aspectRatio);
 		
-		var material = new THREE.MeshBasicMaterial({color: options.color, transparent: true, opacity: 1, side: THREE.DoubleSide});
+		var material = new THREE.MeshPhongMaterial({color: options.color, transparent: true, opacity: 1});
 		
 		context.item = new THREE.Mesh(geometry, material);
 		
@@ -398,7 +393,7 @@ var brick = function(){
 				return;
 			}
 			
-			context.item.material.opacity -= 0.5;
+			context.item.material.opacity -= 0.1;
 		}
 	};
 	
@@ -422,6 +417,7 @@ var game = {
 	visibleArea : {},
 	
 	items : [],
+	lights : [],
 	
 	brickLayerInfo : {},
 	
@@ -451,7 +447,7 @@ var game = {
 		// this keeps the item.position values updated with the transforms applied later during item movements
 		game.scene.updateMatrixWorld(true);
 
-		game.renderer = new THREE.WebGLRenderer();
+		game.renderer = new THREE.WebGLRenderer({antialias: true});
 		game.renderer.shadowMapEnabled = true;
 		game.renderer.setSize(game.ghWidth, game.ghHeight);
 
@@ -462,6 +458,8 @@ var game = {
 		
 		ball.init();
 		game.items.push(ball);
+		
+		game.addLights();
 		
 		game.generateBricks();
 	},
@@ -505,6 +503,29 @@ var game = {
 				game.items.push(brickItem);
 			}
 		}
+	},
+	
+	addLights : function(){
+		var ambientLight = new THREE.AmbientLight({color: 0x444444});
+		game.scene.add(ambientLight);
+		
+		var lightFadingDistance = Math.sqrt(Math.pow(game.visibleArea.x/2, 2) + Math.pow(game.visibleArea.y/2, 2));
+		
+		var topLeftLight = new THREE.DirectionalLight(0x777777, 0.5, lightFadingDistance);
+		topLeftLight.position.set(-game.visibleArea.x/2, game.visibleArea.y/2, 0);
+		game.scene.add(topLeftLight);
+		
+		var topRightLight = new THREE.DirectionalLight(0x777777, 0.5, lightFadingDistance);
+		topRightLight.position.set(game.visibleArea.x/2, game.visibleArea.y/2, 0);
+		game.scene.add(topRightLight);
+		
+		var bottomLeftLight = new THREE.DirectionalLight(0x777777, 0.5, lightFadingDistance);
+		bottomLeftLight.position.set(-game.visibleArea.x/2, -game.visibleArea.y/2, 0);
+		game.scene.add(bottomLeftLight);
+		
+		var bottomRightLight = new THREE.DirectionalLight(0x777777, 0.5, lightFadingDistance);
+		bottomRightLight.position.set(game.visibleArea.x/2, -game.visibleArea.y/2, 0);
+		game.scene.add(bottomRightLight);
 	}
 };
 
